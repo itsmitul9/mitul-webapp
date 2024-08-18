@@ -3,7 +3,7 @@
 1. **Clone the Repository:**
    ```bash
    git clone https://github.com/itsmitul9/mitul-webapp.git
-   cd webapp
+   cd mitul-webapp
    ```
 
 2. **Run the Application:**
