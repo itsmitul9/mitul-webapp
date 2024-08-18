@@ -2,7 +2,7 @@
 
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/itsmitul9/webapp.git
+   git clone https://github.com/itsmitul9/mitul-webapp.git
    cd webapp
    ```
 
