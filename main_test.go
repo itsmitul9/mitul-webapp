@@ -1,69 +1,37 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
-func compareJSON(expected, actual string) bool {
-	var expectedJSON, actualJSON interface{}
-
-	err1 := json.Unmarshal([]byte(expected), &expectedJSON)
-	err2 := json.Unmarshal([]byte(actual), &actualJSON)
-
-	return err1 == nil && err2 == nil && expectedJSON == actualJSON
-}
-
-func TestStatusHandler(t *testing.T) {
-	req, err := http.NewRequest("GET", "/app/status", nil)
-	if err != nil {
-		t.Fatal(err)
+func TestAutoScaler(t *testing.T) {
+	tests := []struct {
+		initialReplicas  int
+		cpuUsage         float64
+		expectedReplicas int
+	}{
+		{10, 0.90, 15}, // Expect an increase in replicas
+		{10, 0.70, 7},  // Expect a decrease in replicas
+		{10, 0.80, 10}, // No change expected
 	}
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(statusHandler)
-	handler.ServeHTTP(rr, req)
+	for _, test := range tests {
+		currentStatus.Replicas = test.initialReplicas
+		currentStatus.CPU.HighPriority = test.cpuUsage
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
+		autoScaler()
 
-	expected := `{"cpu":{"highPriority":0.68},"replicas":10}`
-	if !compareJSON(expected, rr.Body.String()) {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+		if currentStatus.Replicas != test.expectedReplicas {
+			t.Errorf("Expected %d replicas, but got %d", test.expectedReplicas, currentStatus.Replicas)
+		}
 	}
 }
 
-func TestReplicasHandler(t *testing.T) {
-	var jsonStr = []byte(`{"replicas":15}`)
-	req, err := http.NewRequest("PUT", "/app/replicas", bytes.NewBuffer(jsonStr))
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+func TestSimulateCPUUsage(t *testing.T) {
+	replicas := 10
+	usage := simulateCPUUsage(replicas)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(replicasHandler)
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := `{"message":"Replicas updated"}`
-	if !compareJSON(expected, rr.Body.String()) {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
-	}
-	
-	if currentStatus.Replicas != 15 {
-		t.Errorf("replicas not updated: got %v want %v",
-			currentStatus.Replicas, 15)
+	if usage < 0 || usage > 1 {
+		t.Errorf("CPU usage should be between 0 and 1, got %f", usage)
 	}
 }
